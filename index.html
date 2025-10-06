@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hotspot Routing</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+</head>
+<body>
+  <header>
+    <h1>Hotspot Routing Web App</h1>
+  </header>
+  <main>
+    <aside class="sidebar">
+      <section class="panel">
+        <div class="actions">
+          <button id="computeBtn" class="primary">Compute Route</button>
+        </div>
+        <div class="form-row">
+          <label class="checkbox">
+            <input type="checkbox" id="toggleAllSegments" /> Show all segments (NxN dashed)
+          </label>
+        </div>
+      </section>
+      <section class="panel" id="hotspotsPanel">
+        <h2>Hotspots</h2>
+        <div id="hotspotList"></div>
+        <label for="startSelect" class="label">Start</label>
+        <select id="startSelect"></select>
+        <label for="endSelect" class="label">End</label>
+        <select id="endSelect"></select>
+      </section>
+      <section class="panel" id="resultsPanel">
+        <h2>Results</h2>
+        <div id="summary"></div>
+        <ol id="orderList"></ol>
+      </section>
+    </aside>
+    <div id="map"></div>
+  </main>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  ></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
