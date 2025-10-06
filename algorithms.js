@@ -55,17 +55,22 @@ export function twoOpt(order, durations) {
 }
 
 export async function computeGreedyRoute(selectedIdx, startIdx, endIdx) {
-  if (!selectedIdx.includes(startIdx) || !selectedIdx.includes(endIdx)) {
-    throw new Error("Start and End must be within selected hotspots.");
+  if (!selectedIdx.includes(startIdx)) {
+    throw new Error("Start must be within selected hotspots.");
   }
-  if (!state.apiKey) {
+  if (endIdx != null && !selectedIdx.includes(endIdx)) {
+    throw new Error("End must be within selected hotspots or set to Anywhere.");
+  }
+  if (!state.apiKey && !state.useMockApi) {
     throw new Error("API key not available. In development, ensure .env is accessible. For production, requests will go via Cloudflare Workers.");
   }
   const assumedSpeedKmh = 40; // fallback
   const remaining = new Set(selectedIdx);
   const orderGlobal = [startIdx];
   remaining.delete(startIdx);
-  remaining.delete(endIdx);
+  if (endIdx != null) {
+    remaining.delete(endIdx);
+  }
   const alternativeSegments = [];
   while (remaining.size > 0) {
     const curr = orderGlobal[orderGlobal.length - 1];
@@ -173,7 +178,9 @@ export async function computeGreedyRoute(selectedIdx, startIdx, endIdx) {
       }
     }
   }
-  orderGlobal.push(endIdx);
+  if (endIdx != null) {
+    orderGlobal.push(endIdx);
+  }
   const segments = [];
   for (let i = 0; i < orderGlobal.length - 1; i++) {
     const a = orderGlobal[i];
@@ -213,7 +220,8 @@ export async function buildFullDurationMatrix(selectedIdx, assumedSpeedKmh = 40)
       const destIdx = selectedIdx[j];
       let sec = durationsMap.get(destIdx);
       if (sec == null || !Number.isFinite(sec)) {
-        sec = estimateDurationBetween(origin, destIdx, assumedSpeedKmh);
+        const speed = state.useMockApi ? (state.mockSpeedKmh || assumedSpeedKmh) : assumedSpeedKmh;
+        sec = estimateDurationBetween(origin, destIdx, speed);
       }
       matrix[i][j] = sec;
       state.durationCache.set(durationKey(origin, destIdx), sec);
@@ -225,64 +233,91 @@ export async function buildFullDurationMatrix(selectedIdx, assumedSpeedKmh = 40)
 export function heldKarpPathTSP(matrix, selectedIdx, startIdx, endIdx) {
   const m = selectedIdx.length;
   const startPos = selectedIdx.indexOf(startIdx);
-  const endPos = selectedIdx.indexOf(endIdx);
+  const endPos = endIdx == null ? -1 : selectedIdx.indexOf(endIdx);
   const intermediates = [];
   for (let p = 0; p < m; p++) {
-    if (p !== startPos && p !== endPos) intermediates.push(p);
+    if (p !== startPos && (endPos === -1 ? true : p !== endPos)) intermediates.push(p);
   }
   const L = intermediates.length;
   if (L === 0) {
-    return [startIdx, endIdx];
+    // If end is specified, path is start->end; else just start
+    return endPos === -1 ? [startIdx] : [startIdx, endIdx];
   }
   const size = 1 << L;
-  const dp = Array.from({ length: size }, () => Array(L).fill(Infinity));
-  const prev = Array.from({ length: size }, () => Array(L).fill(-1));
+  // TypedArray-based DP to reduce memory overhead and improve performance
+  const dp = new Float32Array(size * L);
+  dp.fill(Infinity);
+  const prev = new Int16Array(size * L);
+  prev.fill(-1);
+  const idxOf = (mask, last) => mask * L + last;
+  // Initialize transitions from start to each intermediate
   for (let t = 0; t < L; t++) {
     const posT = intermediates[t];
-    dp[1 << t][t] = matrix[startPos][posT];
-    prev[1 << t][t] = -1;
+    const imask = 1 << t;
+    const iidx = idxOf(imask, t);
+    dp[iidx] = matrix[startPos][posT];
+    prev[iidx] = -1;
   }
+  // DP over subset masks
   for (let mask = 0; mask < size; mask++) {
     for (let last = 0; last < L; last++) {
       if ((mask & (1 << last)) === 0) continue;
-      const cost = dp[mask][last];
+      const cidx = idxOf(mask, last);
+      const cost = dp[cidx];
       if (!Number.isFinite(cost)) continue;
+      const posLast = intermediates[last];
       for (let nxt = 0; nxt < L; nxt++) {
         if (mask & (1 << nxt)) continue;
-        const posLast = intermediates[last];
         const posNxt = intermediates[nxt];
         const newMask = mask | (1 << nxt);
+        const nidx = idxOf(newMask, nxt);
         const newCost = cost + matrix[posLast][posNxt];
-        if (newCost < dp[newMask][nxt]) {
-          dp[newMask][nxt] = newCost;
-          prev[newMask][nxt] = last;
+        if (newCost < dp[nidx]) {
+          dp[nidx] = newCost;
+          prev[nidx] = last;
         }
       }
     }
   }
+  // Close path: if end specified, add cost to end; otherwise pick minimal cost among fullMask states
   let bestCost = Infinity;
   let bestLast = -1;
   const fullMask = size - 1;
   for (let last = 0; last < L; last++) {
-    const posLast = intermediates[last];
-    const cost = dp[fullMask][last];
+    const cidx = idxOf(fullMask, last);
+    const cost = dp[cidx];
     if (!Number.isFinite(cost)) continue;
-    const total = cost + matrix[posLast][endPos];
-    if (total < bestCost) {
-      bestCost = total;
-      bestLast = last;
+    if (endPos !== -1) {
+      const posLast = intermediates[last];
+      const total = cost + matrix[posLast][endPos];
+      if (total < bestCost) {
+        bestCost = total;
+        bestLast = last;
+      }
+    } else {
+      // open path: no end cost
+      if (cost < bestCost) {
+        bestCost = cost;
+        bestLast = last;
+      }
     }
   }
+  if (bestLast === -1) {
+    // No feasible path found; fall back to trivial
+    return endPos === -1 ? [startIdx] : [startIdx, endIdx];
+  }
+  // Reconstruct order using prev pointers
   const orderPos = [];
   let mask = fullMask;
   let curr = bestLast;
   while (curr !== -1) {
     orderPos.push(intermediates[curr]);
-    const p = prev[mask][curr];
+    const p = prev[idxOf(mask, curr)];
     mask &= ~(1 << curr);
     curr = p;
   }
   orderPos.reverse();
-  const orderGlobal = [startIdx, ...orderPos.map((p) => selectedIdx[p]), endIdx];
+  const orderGlobal = [startIdx, ...orderPos.map((p) => selectedIdx[p])];
+  if (endPos !== -1) orderGlobal.push(endIdx);
   return orderGlobal;
 }

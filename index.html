@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hotspot Routing</title>
-  <link rel="stylesheet" href="styles.css" />
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   />
+  <link rel="stylesheet" href="styles.css?v=20251006" />
 </head>
 <body>
   <header>
@@ -23,6 +23,11 @@
         <div class="form-row">
           <label class="checkbox">
             <input type="checkbox" id="toggleAllSegments" /> Show all segments (NxN dashed)
+          </label>
+        </div>
+        <div class="form-row">
+          <label class="checkbox">
+            <input type="checkbox" id="toggleMockApi" /> Use mock durations (disable external API)
           </label>
         </div>
       </section>

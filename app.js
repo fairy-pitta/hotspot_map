@@ -1,9 +1,9 @@
 // Controller module for Hotspot Routing (ES Modules)
 import { state } from "./state.js";
 import { durationKey } from "./utils.js";
-import { loadApiKeyFromEnv } from "./services.js";
+import { loadApiKeyFromEnv, seedMockDurationsForSelection } from "./services.js";
 import { computeGreedyRoute, buildFullDurationMatrix, heldKarpPathTSP } from "./algorithms.js";
-import { initMap, renderHotspotSelection, renderMarkers, drawRoute, renderDurationLabels, renderResultsSegments, renderAlternativeSegments } from "./rendering.js";
+import { initMap, renderHotspotSelection, renderMarkers, drawRoute, renderResultsSegments, renderAlternativeSegments, bindRouteTooltips } from "./rendering.js";
 
 async function loadHotspots() {
   try {
@@ -30,18 +30,33 @@ async function computeRoute() {
     return;
   }
   const startIdx = Number(document.getElementById("startSelect").value);
-  const endIdx = Number(document.getElementById("endSelect").value);
+  const endVal = document.getElementById("endSelect").value;
+  const endIsAnywhere = endVal === "ANYWHERE";
+  const endIdx = endIsAnywhere ? null : Number(endVal);
+
+  // Validate start/end are among selected when required
+  if (!selectedIdx.includes(startIdx)) {
+    alert("Start must be among selected hotspots.");
+    return;
+  }
+  if (!endIsAnywhere && !selectedIdx.includes(endIdx)) {
+    alert("End must be among selected hotspots or set to Anywhere.");
+    return;
+  }
 
   state.isComputing = true;
   const btn = document.getElementById("computeBtn");
   if (btn) {
     btn.disabled = true;
-    btn.textContent = "計算中...";
+    btn.textContent = "Computing...";
   }
 
   try {
-    if (selectedIdx.length < 15) {
+    if (selectedIdx.length <= 20) {
       const assumedSpeedKmh = 40;
+      if (state.useMockApi) {
+        seedMockDurationsForSelection(selectedIdx);
+      }
       const matrix = await buildFullDurationMatrix(selectedIdx, assumedSpeedKmh);
       const orderGlobal = heldKarpPathTSP(matrix, selectedIdx, startIdx, endIdx);
       const segments = [];
@@ -58,7 +73,7 @@ async function computeRoute() {
         state.durationCache.set(durationKey(a, b), sec);
       }
       drawRoute(orderGlobal);
-      renderDurationLabels(orderGlobal, segments);
+      bindRouteTooltips(orderGlobal, segments);
       renderResultsSegments(orderGlobal, segments);
       const alternativeSegments = [];
       for (let i = 0; i < orderGlobal.length - 1; i++) {
@@ -83,9 +98,13 @@ async function computeRoute() {
       renderAlternativeSegments(alternativeSegments);
       return;
     }
+    if (state.useMockApi) {
+      seedMockDurationsForSelection(selectedIdx);
+    }
     const { orderGlobal, segments, alternativeSegments } = await computeGreedyRoute(selectedIdx, startIdx, endIdx);
     drawRoute(orderGlobal);
-    renderDurationLabels(orderGlobal, segments);
+    bindRouteTooltips(orderGlobal, segments);
+    // duration labels removed; tooltips will be handled inside rendering
     renderResultsSegments(orderGlobal, segments);
     renderAlternativeSegments(alternativeSegments);
   } catch (e) {
@@ -111,6 +130,16 @@ window.addEventListener("DOMContentLoaded", () => {
       state.showAllSegments = e.target.checked;
       // re-render alternative segments according to toggle
       renderAlternativeSegments([]);
+    });
+  }
+  // duration label toggle removed
+  const mockToggle = document.getElementById("toggleMockApi");
+  if (mockToggle) {
+    mockToggle.checked = state.useMockApi;
+    mockToggle.addEventListener("change", (e) => {
+      state.useMockApi = e.target.checked;
+      // Clear cached durations when switching modes to avoid confusion
+      state.durationCache.clear();
     });
   }
 });

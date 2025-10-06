@@ -1,4 +1,5 @@
 import { state } from "./state.js";
+import { estimateDurationBetween, durationKey } from "./utils.js";
 
 export function buildDistanceMatrixUrl(origins, destinations, apiKey) {
   const base = "https://api.distancematrix.ai/maps/api/distancematrix/json";
@@ -18,6 +19,10 @@ export function buildDistanceMatrixUrl(origins, destinations, apiKey) {
 }
 
 export async function fetchDurationsFromOrigin(originIdx, candidateIdxs) {
+  // Mock mode: return synthetic durations and simulate latency
+  if (state.useMockApi) {
+    return await mockFetchDurationsFromOrigin(originIdx, candidateIdxs);
+  }
   const origin = state.hotspots[originIdx];
   const destinations = candidateIdxs.map((i) => state.hotspots[i]);
   const url = buildDistanceMatrixUrl([origin], destinations, state.apiKey);
@@ -34,10 +39,45 @@ export async function fetchDurationsFromOrigin(originIdx, candidateIdxs) {
         ? el.duration_in_traffic.value
         : (el.duration?.value ?? Infinity);
       result.set(candidateIdxs[i], sec);
-      state.durationCache.set(`${originIdx}-${candidateIdxs[i]}`, sec);
+      state.durationCache.set(durationKey(originIdx, candidateIdxs[i]), sec);
     }
   }
   return result;
+}
+
+async function mockFetchDurationsFromOrigin(originIdx, candidateIdxs) {
+  if (state.mockLatencyMs && state.mockLatencyMs > 0) {
+    await new Promise((r) => setTimeout(r, state.mockLatencyMs));
+  }
+  const result = new Map();
+  for (const destIdx of candidateIdxs) {
+    let sec = state.mockDurations.get(durationKey(originIdx, destIdx));
+    if (sec == null || !Number.isFinite(sec)) {
+      sec = estimateDurationBetween(originIdx, destIdx, state.mockSpeedKmh || 40);
+      state.mockDurations.set(durationKey(originIdx, destIdx), sec);
+    }
+    result.set(destIdx, sec);
+    state.durationCache.set(durationKey(originIdx, destIdx), sec);
+  }
+  return result;
+}
+
+export function seedMockDurationsForSelection(selectedIdx) {
+  state.mockDurations.clear();
+  const speed = state.mockSpeedKmh || 40;
+  for (let i = 0; i < selectedIdx.length; i++) {
+    for (let j = 0; j < selectedIdx.length; j++) {
+      const a = selectedIdx[i];
+      const b = selectedIdx[j];
+      const key = durationKey(a, b);
+      if (i === j) {
+        state.mockDurations.set(key, 0);
+      } else {
+        const sec = estimateDurationBetween(a, b, speed);
+        state.mockDurations.set(key, sec);
+      }
+    }
+  }
 }
 
 export async function loadApiKeyFromEnv() {

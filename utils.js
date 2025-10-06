@@ -2,7 +2,7 @@ import { state } from "./state.js";
 
 export function markerStyle(selected) {
   return {
-    radius: 8,
+    radius: 9,
     color: selected ? "#16a34a" : "#6b7280",
     fillColor: selected ? "#22c55e" : "#9ca3af",
     fillOpacity: 0.9,
@@ -38,6 +38,9 @@ export function durationKey(aIdx, bIdx) {
 export function estimateDurationBetween(aIdx, bIdx, speedKmh) {
   const a = state.hotspots[aIdx];
   const b = state.hotspots[bIdx];
+  if (!a || !b || a.lat == null || a.lng == null || b.lat == null || b.lng == null) {
+    return Infinity;
+  }
   const km = haversineDistanceKm(a.lat, a.lng, b.lat, b.lng);
   return (km / speedKmh) * 3600;
 }
