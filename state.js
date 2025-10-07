@@ -23,4 +23,6 @@ export const state = {
   altPolylines: [],
   // per-segment route polylines for tooltip binding
   segmentPolylines: [],
+  // Workers proxy detection (set true when /api is available)
+  useWorkerProxy: false,
 };

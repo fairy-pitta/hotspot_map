@@ -2,19 +2,23 @@ import { state } from "./state.js";
 import { estimateDurationBetween, durationKey } from "./utils.js";
 
 export function buildDistanceMatrixUrl(origins, destinations, apiKey) {
-  const base = "https://api.distancematrix.ai/maps/api/distancematrix/json";
   const originsParam = origins.map((o) => `${o.lat},${o.lng}`).join("|");
   const destinationsParam = destinations.map((d) => `${d.lat},${d.lng}`).join("|");
   const params = new URLSearchParams({
     origins: originsParam,
     destinations: destinationsParam,
-    key: apiKey,
     mode: state.mode,
   });
   if (state.useTraffic && state.mode === "driving") {
     params.set("departure_time", state.departureTime === "now" ? "now" : String(state.departureTime));
     params.set("traffic_model", state.trafficModel || "best_guess");
   }
+  // If Worker proxy is available, route via /api/dm, else call upstream directly
+  if (state.useWorkerProxy) {
+    return `/api/dm?${params.toString()}`;
+  }
+  const base = "https://api.distancematrix.ai/maps/api/distancematrix/json";
+  if (apiKey) params.set("key", apiKey);
   return `${base}?${params.toString()}`;
 }
 
@@ -81,6 +85,18 @@ export function seedMockDurationsForSelection(selectedIdx) {
 }
 
 export async function loadApiKeyFromEnv() {
+  // First, check if Worker proxy is available
+  try {
+    const ping = await fetch("/api/ping", { method: "GET" });
+    if (ping.ok) {
+      state.useWorkerProxy = true;
+      state.apiKey = null; // client key not needed when proxy is used
+      return;
+    }
+  } catch (_) {
+    // ignore
+  }
+  // Fallback: attempt to read .env (development only)
   try {
     const res = await fetch("/.env");
     if (!res.ok) throw new Error(".env not accessible in this environment");
@@ -91,7 +107,7 @@ export async function loadApiKeyFromEnv() {
       const m = line.match(/^([A-Z0-9_]+)=(.+)$/);
       if (m) kv[m[1]] = m[2].trim();
     }
-    state.apiKey = kv["DISTANCEMATRIX_FAST_APPLICATION"] || kv["DISTANCEMATRIX_ACCURATE_APPLICATION"] || null;
+    state.apiKey = kv["DISTANCEMATRIX_FAST_APPLICATION"] || kv["DISTANCEMATRIX_ACCURATE_APPLICATION"] || kv["DISTANCEMATRIX_API_KEY"] || null;
   } catch (e) {
     console.warn("Failed to read .env:", e.message);
     state.apiKey = null;

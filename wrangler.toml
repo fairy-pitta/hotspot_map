@@ -1,0 +1,9 @@
+name = "hotspot-map"
+main = "src/worker.js"
+compatibility_date = "2024-10-01"
+
+# Serve static assets (HTML/JS/CSS) from the project root
+assets = { binding = "ASSETS", directory = "." }
+
+# You will set the API key as a secret after login:
+# wrangler secret put DISTANCEMATRIX_API_KEY

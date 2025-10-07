@@ -61,8 +61,8 @@ export async function computeGreedyRoute(selectedIdx, startIdx, endIdx) {
   if (endIdx != null && !selectedIdx.includes(endIdx)) {
     throw new Error("End must be within selected hotspots or set to Anywhere.");
   }
-  if (!state.apiKey && !state.useMockApi) {
-    throw new Error("API key not available. In development, ensure .env is accessible. For production, requests will go via Cloudflare Workers.");
+  if (!state.apiKey && !state.useMockApi && !state.useWorkerProxy) {
+    throw new Error("API key not available. In development, .envを読み込むか、Cloudflare Workersのプロキシを有効化してください。");
   }
   const assumedSpeedKmh = 40; // fallback
   const remaining = new Set(selectedIdx);
