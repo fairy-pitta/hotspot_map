@@ -107,23 +107,44 @@ export function bindRouteTooltips(orderGlobal, segments) {
 export function renderResultsSegments(orderGlobal, segments) {
   const summaryEl = document.getElementById("summary");
   const listEl = document.getElementById("orderList");
+  const rightbar = document.querySelector(".rightbar");
+  // Toggle visibility: show only when there is a result
+  if (!orderGlobal || orderGlobal.length === 0) {
+    if (rightbar) rightbar.classList.add("hidden");
+    listEl.innerHTML = "";
+    summaryEl.innerHTML = "";
+    return;
+  } else {
+    if (rightbar) rightbar.classList.remove("hidden");
+  }
   listEl.innerHTML = "";
   listEl.classList.add("gm-simple");
   let total = 0;
+
+  // Show the first spot once (no hyphen)
+  if (orderGlobal && orderGlobal.length > 0) {
+    const firstIdx = orderGlobal[0];
+    const firstName = state.hotspots[firstIdx] && state.hotspots[firstIdx].name;
+    if (firstName) {
+      const liFirst = document.createElement("li");
+      liFirst.className = "gm-row";
+      liFirst.innerHTML = `<div class="gm-line">${firstName}</div>`;
+      listEl.appendChild(liFirst);
+    }
+  }
+
+  // For each segment, show a simple duration line (no arrows) and then the next spot once
   for (let i = 0; i < orderGlobal.length - 1; i++) {
-    const aGlobal = orderGlobal[i];
     const bGlobal = orderGlobal[i + 1];
     const seg = segments[i];
     total += isFinite(seg) ? seg : 0;
-    const li = document.createElement("li");
-    li.className = "gm-row";
-    const fromName = state.hotspots[aGlobal].name;
     const toName = state.hotspots[bGlobal].name;
     const durText = isFinite(seg) ? formatDuration(seg) : "N/A";
+    const li = document.createElement("li");
+    li.className = "gm-row";
     li.innerHTML = `
-      <div class="gm-line">- ${fromName}</div>
-      <div class="gm-arrowline">↓ <span class="gm-duration">${durText}</span></div>
-      <div class="gm-line">- ${toName}</div>
+      <div class="gm-segline"><span class="gm-duration">${durText}</span></div>
+      <div class="gm-line">${toName}</div>
     `;
     listEl.appendChild(li);
   }
