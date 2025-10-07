@@ -7,3 +7,5 @@ assets = { binding = "ASSETS", directory = "." }
 
 # You will set the API key as a secret after login:
 # wrangler secret put DISTANCEMATRIX_API_KEY
+
+routes = [{ pattern = "held-karp.singbirds.net/*", zone_name = "singbirds.net" }]
