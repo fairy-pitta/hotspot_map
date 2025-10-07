@@ -132,8 +132,12 @@ async function computeRoute() {
 window.addEventListener("DOMContentLoaded", () => {
   initMap();
   loadHotspots();
-  const btn = document.getElementById("computeBtn");
-  if (btn) btn.addEventListener("click", computeRoute);
+  const headerCompute = document.getElementById("headerCompute");
+  if (headerCompute) {
+    headerCompute.addEventListener("click", () => {
+      computeRoute();
+    });
+  }
   const toggle = document.getElementById("toggleAllSegments");
   if (toggle) {
     toggle.addEventListener("change", (e) => {
@@ -204,10 +208,6 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
   // Mobile FAB compute button
-  const mapFabCompute = document.getElementById("mapFabCompute");
-  if (mapFabCompute) {
-    mapFabCompute.addEventListener("click", () => {
-      computeRoute();
-    });
-  }
+  // remove mapFabCompute button handler
+  // (deleted)
 });
