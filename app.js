@@ -46,9 +46,14 @@ async function computeRoute() {
 
   state.isComputing = true;
   const btn = document.getElementById("computeBtn");
+  const headerBtn = document.getElementById("headerCompute");
   if (btn) {
     btn.disabled = true;
     btn.textContent = "Computing...";
+  }
+  if (headerBtn) {
+    headerBtn.disabled = true;
+    headerBtn.textContent = "Computing...";
   }
 
   try {
@@ -125,6 +130,11 @@ async function computeRoute() {
     if (btn2) {
       btn2.disabled = false;
       btn2.textContent = "Compute Route";
+    }
+    const headerBtn2 = document.getElementById("headerCompute");
+    if (headerBtn2) {
+      headerBtn2.disabled = false;
+      headerBtn2.textContent = "Compute";
     }
   }
 }
