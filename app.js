@@ -148,6 +148,13 @@ window.addEventListener("DOMContentLoaded", () => {
       computeRoute();
     });
   }
+  // Desktop sidebar compute button
+  const computeBtn = document.getElementById("computeBtn");
+  if (computeBtn) {
+    computeBtn.addEventListener("click", () => {
+      computeRoute();
+    });
+  }
   const toggle = document.getElementById("toggleAllSegments");
   if (toggle) {
     toggle.addEventListener("change", (e) => {
