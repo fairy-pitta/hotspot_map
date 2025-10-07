@@ -96,6 +96,16 @@ async function computeRoute() {
         }
       }
       renderAlternativeSegments(alternativeSegments);
+      // Auto-open results on mobile
+      const rightbar = document.querySelector(".rightbar");
+      if (window.innerWidth <= 768 && rightbar) {
+        rightbar.classList.add("open");
+        rightbar.classList.remove("hidden");
+        const overlay = document.getElementById("overlay");
+        if (overlay) overlay.classList.add("show");
+        const resultsToggle = document.getElementById("resultsToggle");
+        if (resultsToggle) resultsToggle.setAttribute("aria-expanded", "true");
+      }
       return;
     }
     if (state.useMockApi) {
@@ -140,6 +150,64 @@ window.addEventListener("DOMContentLoaded", () => {
       state.useMockApi = e.target.checked;
       // Clear cached durations when switching modes to avoid confusion
       state.durationCache.clear();
+    });
+  }
+  // Mobile toggles: sidebar drawer and results bottom sheet
+  const menuToggle = document.getElementById("menuToggle");
+  const resultsToggle = document.getElementById("resultsToggle");
+  const sidebar = document.querySelector(".sidebar");
+  const rightbar = document.querySelector(".rightbar");
+  const overlay = document.getElementById("overlay");
+  function closeAllPanels() {
+    if (sidebar) sidebar.classList.remove("open");
+    if (rightbar) rightbar.classList.remove("open");
+    if (overlay) overlay.classList.remove("show");
+    if (menuToggle) menuToggle.setAttribute("aria-expanded", "false");
+    if (resultsToggle) resultsToggle.setAttribute("aria-expanded", "false");
+  }
+  function openSidebar() {
+    if (!sidebar) return;
+    sidebar.classList.add("open");
+    if (overlay) overlay.classList.add("show");
+    if (menuToggle) menuToggle.setAttribute("aria-expanded", "true");
+  }
+  function openResults() {
+    if (!rightbar) return;
+    rightbar.classList.add("open");
+    rightbar.classList.remove("hidden");
+    if (overlay) overlay.classList.add("show");
+    if (resultsToggle) resultsToggle.setAttribute("aria-expanded", "true");
+  }
+  if (menuToggle) {
+    menuToggle.addEventListener("click", () => {
+      const isOpen = sidebar && sidebar.classList.contains("open");
+      if (isOpen) {
+        closeAllPanels();
+      } else {
+        openSidebar();
+      }
+    });
+  }
+  if (resultsToggle) {
+    resultsToggle.addEventListener("click", () => {
+      const isOpen = rightbar && rightbar.classList.contains("open");
+      if (isOpen) {
+        closeAllPanels();
+      } else {
+        openResults();
+      }
+    });
+  }
+  if (overlay) {
+    overlay.addEventListener("click", () => {
+      closeAllPanels();
+    });
+  }
+  // Mobile FAB compute button
+  const mapFabCompute = document.getElementById("mapFabCompute");
+  if (mapFabCompute) {
+    mapFabCompute.addEventListener("click", () => {
+      computeRoute();
     });
   }
 });
